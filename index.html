@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="2010—2025考研英语二真题精读、逐词朗读与生词默写">
   <title>研词｜2010—2025 考研英语二真题精读</title>
-  <link rel="stylesheet" href="styles.css?v=20261107-7">
+  <link rel="stylesheet" href="styles.css?v=20261107-10">
 </head>
 <body>
   <header class="topbar">
@@ -83,6 +83,14 @@
           <button class="rate-step" id="fontSizeUp" type="button" aria-label="增大字号">＋</button>
         </div>
         <p class="read-status" id="readStatus" aria-live="polite"></p>
+      </div>
+
+      <div class="level-legend" id="levelLegend" role="group" aria-label="词汇分级标注">
+        <button class="level-chip" type="button" data-level="high"><i aria-hidden="true"></i>高频词</button>
+        <button class="level-chip" type="button" data-level="hard"><i aria-hidden="true"></i>难词</button>
+        <button class="level-chip" type="button" data-level="sense"><i aria-hidden="true"></i>熟词生义</button>
+        <button class="level-chip" type="button" data-level="phrase"><i aria-hidden="true"></i>考研短语</button>
+        <span class="level-hint">标注可随时开关 · 点词仍可看释义</span>
       </div>
 
       <section class="paper" id="paper" aria-live="polite"></section>
@@ -244,6 +252,7 @@
   <script src="offline-dictionary.js?v=20261104-4"></script>
   <script src="supplement-data.js"></script>
   <script src="supplement-patches.js?v=20261104-4"></script>
-  <script src="app.js?v=20261107-10"></script>
+  <script src="exam-word-levels.js?v=20261107-4"></script>
+  <script src="app.js?v=20261107-13"></script>
 </body>
 </html>

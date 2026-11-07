@@ -675,6 +675,7 @@
     $("#progressValue").textContent = "0%";
     closePopover();
     prepareSpeechDom();
+    markExamLevels();
     refreshReadBar();
     if (shouldScroll) window.scrollTo({top: 0, behavior: "smooth"});
   }
@@ -860,6 +861,104 @@
       });
       passageBlockRanges[blockIndex] = passageSegments.length > firstIndex ? [firstIndex, passageSegments.length - 1] : null;
     });
+  }
+
+  /* ===== 词汇分级标注：高频核心词 / 难词 / 考研短语 ===== */
+  const levelKey = "yanci-word-levels";
+  const levelNames = ["high", "hard", "sense", "phrase"];
+  const levelLabels = {high: "高频词", hard: "难词", sense: "熟词生义", phrase: "考研短语"};
+  const levelHighWords = new Set(((window.EXAM_WORD_LEVELS && window.EXAM_WORD_LEVELS.high) || []).map(normalizeWord));
+  const levelHardWords = new Set(((window.EXAM_WORD_LEVELS && window.EXAM_WORD_LEVELS.hard) || []).map(normalizeWord));
+  const levelSenseWords = new Set(((window.EXAM_WORD_LEVELS && window.EXAM_WORD_LEVELS.sense) || []).map(normalizeWord));
+  const levelPhrases = ((window.EXAM_WORD_LEVELS && window.EXAM_WORD_LEVELS.phrases) || [])
+    .map(phrase => phrase.toLowerCase().split(/\s+/).map(normalizeWord).filter(Boolean))
+    .filter(keys => keys.length > 1);
+  const levelState = {high: true, hard: true, sense: true, phrase: true};
+
+  function lemmaForms(word) {
+    const forms = [word];
+    if (word.endsWith("ies")) forms.push(`${word.slice(0, -3)}y`);
+    if (word.endsWith("es")) forms.push(word.slice(0, -2));
+    if (word.endsWith("s")) forms.push(word.slice(0, -1));
+    if (word.endsWith("ed")) forms.push(word.slice(0, -2), word.slice(0, -1));
+    if (word.endsWith("ing")) {
+      const base = word.slice(0, -3);
+      forms.push(base, `${base}e`);
+      if (base.length > 3 && base[base.length - 1] === base[base.length - 2]) forms.push(base.slice(0, -1));
+    }
+    return forms;
+  }
+
+  function levelHas(set, key) {
+    if (set.has(key)) return true;
+    const forms = lemmaForms(key);
+    for (let i = 0; i < forms.length; i += 1) {
+      if (set.has(forms[i])) return true;
+    }
+    return false;
+  }
+
+  function loadLevelState() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(levelKey) || "{}");
+      levelNames.forEach(name => {
+        if (typeof stored[name] === "boolean") levelState[name] = stored[name];
+      });
+    } catch (error) {}
+  }
+
+  function applyLevelState() {
+    levelNames.forEach(name => document.body.classList.toggle(`hide-lv-${name}`, !levelState[name]));
+    $$("#levelLegend .level-chip").forEach(chip => {
+      chip.classList.toggle("is-on", Boolean(levelState[chip.dataset.level]));
+    });
+  }
+
+  function saveLevelState() {
+    try { localStorage.setItem(levelKey, JSON.stringify(levelState)); } catch (error) {}
+  }
+
+  function markExamLevels() {
+    $$(".english-line", paper).forEach(line => {
+      const words = $$(".word-wrap[data-key]", line);
+      words.forEach(el => {
+        el.classList.toggle("lv-high", levelHas(levelHighWords, el.dataset.key));
+        el.classList.toggle("lv-hard", levelHas(levelHardWords, el.dataset.key));
+        el.classList.toggle("lv-sense", levelHas(levelSenseWords, el.dataset.key));
+      });
+      if (!levelPhrases.length || words.length < 2) return;
+      const keys = words.map(el => el.dataset.key);
+      const hits = new Set();
+      levelPhrases.forEach(phraseKeys => {
+        for (let i = 0; i + phraseKeys.length <= keys.length; i += 1) {
+          let matched = true;
+          for (let j = 0; j < phraseKeys.length; j += 1) {
+            if (keys[i + j] !== phraseKeys[j]) { matched = false; break; }
+          }
+          if (matched) for (let j = 0; j < phraseKeys.length; j += 1) hits.add(words[i + j]);
+        }
+      });
+      hits.forEach(el => el.classList.add("lv-phrase"));
+    });
+  }
+
+  function initWordLevels() {
+    loadLevelState();
+    applyLevelState();
+    const legend = $("#levelLegend");
+    if (legend) {
+      legend.addEventListener("click", event => {
+        const chip = event.target.closest(".level-chip");
+        if (!chip) return;
+        const name = chip.dataset.level;
+        if (!levelNames.includes(name)) return;
+        levelState[name] = !levelState[name];
+        applyLevelState();
+        saveLevelState();
+        showToast(`${levelLabels[name]}已${levelState[name] ? "标亮" : "隐藏"}`);
+      });
+    }
+    markExamLevels();
   }
 
   function splitSpeechSentence(sentence, limit = 32) {
@@ -1778,6 +1877,7 @@
   renderSection(sectionIndex, false);
   initThemeAndFont();
   initFloatingStop();
+  initWordLevels();
 
   paper.addEventListener("click", event => {
     const word = event.target.closest(".word-wrap[data-word]");
